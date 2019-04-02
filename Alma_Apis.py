@@ -3,7 +3,6 @@ import os
 import requests
 import json
 # internal import
-from . import records
 from mail import mail
 
 
