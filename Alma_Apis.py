@@ -24,23 +24,6 @@ FORMATS = {
 }
 
 RESOURCES = {
-    'bib': 'bibs/{mms_id}',
-    'holdings': 'bibs/{mms_id}/holdings',
-    'holding': 'bibs/{mms_id}/holdings/{holding_id}',
-    'items': 'bibs/{mms_id}/holdings/{holding_id}/items',
-    'item': 'bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}',
-    'bib_requests': 'bibs/{mms_id}/requests',
-    'item_requests':
-        'bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests',
-    'bib_requests': 'bibs/{mms_id}/requests',
-    'bib_request': 'bibs/{mms_id}/requests/{request_id}',
-    'item_requests': 'bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests',
-    'item_request': 'bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests/{request_id}',
-    'bib_booking_availability': 'bibs/{mms_id}/booking-availability',
-    'item_booking_availability':
-        'bibs/{mms_id}/holdings/{holding_id}/items/' +
-        '{item_pid}/booking-availability',
-    'loan': 'bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/loans',
     'job' : 'conf/jobs/{job_id}?op={operation}',
     'job_instance' : 'conf/jobs/{job_id}/instances/{instance_id}',
     'search_set_id' : 'conf/sets?q=name~{set_name}'
