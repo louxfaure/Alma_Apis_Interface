@@ -119,6 +119,6 @@ class HTTPError(Exception):
         msg = "\n  HTTP Status: {}\n  Method: {}\n  URL: {}\n  Response: {}"
         sujet = service + 'Erreur'
         message = mail.Mail()
-        message.envoie('alexandre.faure@u-bordeaux.fr','alexandre.faure@u-bordeaux.fr',sujet, msg.format(response.status_code, response.request.method, response.url, response.text) )
+        message.envoie(os.getenv('ADMIN_MAIL'),os.getenv('ADMIN_MAIL'),sujet, msg.format(response.status_code, response.request.method, response.url, response.text) )
         return msg.format(response.status_code, response.request.method,
                           response.url, response.text)
