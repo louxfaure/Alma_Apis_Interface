@@ -2,8 +2,10 @@ import os
 # external imports
 import requests
 import json
+import logging
 # internal import
 from mail import mail
+from logs import logs
 
 
 __version__ = '0.1.0'
@@ -25,7 +27,8 @@ FORMATS = {
 RESOURCES = {
     'job' : 'conf/jobs/{job_id}?op={operation}',
     'job_instance' : 'conf/jobs/{job_id}/instances/{instance_id}',
-    'search_set_id' : 'conf/sets?q=name~{set_name}'
+    'search_set_id' : 'conf/sets?q=name~{set_name}',
+    'get_set' : 'conf/sets/{set_id}'
 }
 
 
@@ -40,6 +43,7 @@ class Alma(object):
         self.apikey = apikey
         self.endpoint = ENDPOINTS[region]
         self.service = service
+        self.logger = logging.getLogger(service)
 
     @property
     #Construit la requête et met en forme les réponses
@@ -108,6 +112,18 @@ class Alma(object):
             raise HTTPError(response,self.service)
         return set_id
 
+    #Retourne le nombre de membres d'un jeu de résultat
+    def get_set_member_number(self, set_id, accept='json'):
+        response = self.request('GET', 'get_set',
+                                {'set_id': set_id},
+                                accept=accept)
+        content = self.extract_content(response)
+        try:
+            members_num = content['number_of_members']['value']
+        except KeyError:
+            raise HTTPError(response,self.service)
+        return members_num
+
 #Gestion des erreurs
 class HTTPError(Exception):
 
@@ -115,9 +131,10 @@ class HTTPError(Exception):
         super(HTTPError,self).__init__(self.msg(response, service))
 
     def msg(self, response, service):
+        logger = logging.getLogger(service)
         msg = "\n  HTTP Status: {}\n  Method: {}\n  URL: {}\n  Response: {}"
         sujet = service + 'Erreur'
         message = mail.Mail()
         message.envoie(os.getenv('ADMIN_MAIL'),os.getenv('ADMIN_MAIL'),sujet, msg.format(response.status_code, response.request.method, response.url, response.text) )
-        return msg.format(response.status_code, response.request.method,
-                          response.url, response.text)
+        logger.error("HTTP Status: {} || Method: {} || URL: {} || Response: {}".format(response.status_code, response.request.method,
+                          response.url, response.text))
