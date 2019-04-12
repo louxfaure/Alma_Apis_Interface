@@ -26,9 +26,23 @@ def get_job(job_id,instance_id):
 
 #On initialise l'objet API
 api = Alma_Apis.Alma(apikey=os.getenv('PROD_NETWORK_CONF_API'), region='EU', service='test')
-identifie_bib_job_rapport = get_job('M58',4057317540004671)
-print(json.dumps(identifie_bib_job_rapport, indent=4, sort_keys=True))
-set_name = identifie_bib_job_rapport['counter'][0]['value']
-number_of_set_members = identifie_bib_job_rapport['counter'][1]['value']
-print(set_name)
-print(number_of_set_members)
+suppr_bib_job_rapport = get_job('M28',4070270680004671)
+# print(json.dumps(identifie_bib_job_rapport, indent=4, sort_keys=True))
+set_name = suppr_bib_job_rapport['counter'][0]['value']
+
+if suppr_bib_job_rapport['counter'][0]['value'] == 'The report was not generated due to the number of records required to be calculated':
+    text = 'The report was not generated due to the number of records required to be calculated'
+else:   
+    text = '''Service Delete_Bib terminé avec succès.
+    Sur {} notice(s) sans inventaire :
+        * {} notice(s) supprimée(s)
+        * {} notice(s) non supprimée(s) car liées à un inventaire
+        * {} notice(s) non supprimée(s) car liées à une commande
+        * {} notice(s) non supprimée(s) car liées à d'autres notices\
+    '''.format(number_of_set_members,
+            suppr_bib_job_rapport['counter'][0]['value'],
+            suppr_bib_job_rapport['counter'][1]['value'],
+            suppr_bib_job_rapport['counter'][2]['value'],
+            suppr_bib_job_rapport['counter'][3]['value'])
+# print(number_of_set_members)
+print(text)
