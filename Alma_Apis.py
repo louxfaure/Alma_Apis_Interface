@@ -28,7 +28,8 @@ RESOURCES = {
     'job' : 'conf/jobs/{job_id}?op={operation}',
     'job_instance' : 'conf/jobs/{job_id}/instances/{instance_id}',
     'search_set_id' : 'conf/sets?q=name~{set_name}',
-    'get_set' : 'conf/sets/{set_id}'
+    'get_set' : 'conf/sets/{set_id}',
+    'get_holding' : 'bibs/{bib_id}/holdings/{holding_id}'
 }
 
 
@@ -123,7 +124,18 @@ class Alma(object):
         except KeyError:
             raise HTTPError(response,self.service)
         return members_num
-
+    #Retourne une holding à partir de son identifiant et de l'identifiant de la notice bib
+    def get_holding(self, bib_id, holding_id, accept='xml'):
+        response = self.request('GET', 'get_holding',
+                                {'bib_id' : bib_id,
+                                'holding_id' : holding_id},
+                                accept=accept)
+        return self.extract_content(response)
+    def set_holding(self, bib_id, holding_id, data):
+        response = self.request('PUT', 'get_holding', 
+                                {'bib_id': bib_id,'holding_id': holding_id},
+                                data=data, content_type='xml', accept='xml')
+        return self.extract_content(response)
 #Gestion des erreurs
 class HTTPError(Exception):
 
