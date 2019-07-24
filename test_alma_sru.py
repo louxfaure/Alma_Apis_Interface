@@ -64,7 +64,7 @@ def construit_new_holding(holding, newEtaCol):
         champNote = cree_sous_champ('z',note)
         newChpEtatCol.append(champNote)
     notice.append(newChpEtatCol)
-    print(ET.tostring(root))
+    return ET.tostring(root)
 
 
 libraryId = '1103300000'
@@ -72,8 +72,7 @@ rcr = '335222203'
 ppn ='039550117'
 sru = Alma_Sru.AlmaSru(institution='ub',service='test')
 api = Alma_Apis.Alma(apikey=os.getenv('TEST_UB_API'), region='EU', service='test')
-# reponse = sru.ppnToMmsid(query='(PPN)168466783')
-# print(reponse)
+
 mmsId, holdingIdList = sru.ppnToHoldingid(query='(PPN)'+ppn,libraryId=libraryId)
 print(mmsId)
 etatColUnique, etatCollSudoc = retrouve_etat_col(rcr,ppn)
@@ -83,7 +82,7 @@ if etatColUnique :
         print(holdingId)
         holding = api.get_holding(mmsId, holdingId, accept='xml')
         newHolding = construit_new_holding(holding,etatCollSudoc)     
-        # reponse = api.set_holding(mmsId, holdingId, ET.tostring(root))
-        # print(reponse)
+        reponse = api.set_holding(mmsId, holdingId, newHolding)
+        print(reponse)
 else :
     print(etatCollSudoc)
