@@ -25,7 +25,7 @@ class AlmaSru(object):
     @property
 
     def baseurl(self):
-        return "https://pudb-{}.alma.exlibrisgroup.com/view/sru/33PUDB_{}?version=1.2&operation=searchRetrieve".format(self.institution.lower(),self.institution.upper())
+        return "https://pudb-{}.alma.exlibrisgroup.com/view/sru/{}?version=1.2&operation=searchRetrieve".format(self.institution.lower(),"33PUDB_"+self.institution.upper())
 
     def fullurl(self, query, reponseFormat,index,noticesSuppr):
         return self.baseurl + '&format=' + reponseFormat + '&query=' + self.searchQuery(query, index, noticesSuppr)
@@ -38,7 +38,7 @@ class AlmaSru(object):
             searchQuery += ' and alma.mms_tagSuppressed=false'
         return urllib.parse.quote(searchQuery)
 
-    def request(self, query ,reponseFormat='marcxml', index='alma.all_for_ui',noticesSuppr=False):
+    def sru_request(self, query ,reponseFormat='marcxml', index='alma.all_for_ui',noticesSuppr=False):
         url=self.fullurl(query,reponseFormat, index,noticesSuppr)
         print(url)
         r = requests.get(url)
@@ -68,20 +68,34 @@ class AlmaSru(object):
         return holdingList
 
     def ppnToMmsid(self, query ):
-        reponse = self.request(query=query ,reponseFormat='marcxml', index='alma.other_system_number')
+        reponse = self.sru_request(query=query ,reponseFormat='marcxml', index='alma.other_system_number')
         if  self.get_nombre_resultats(reponse) == '1' :
             mmsId = self.get_mmsId(reponse.find("sru:records/sru:record",ns))
             return mmsId
         else :
             return 'Ko'
-    def ppnToHoldingid(self, query, libraryId ):
-        reponse = self.request(query=query ,reponseFormat='marcxml', index='alma.other_system_number')
-        if  self.get_nombre_resultats(reponse) == '1' :
-            mmsId = self.get_mmsId(reponse.find("sru:records/sru:record",ns))
-            holdingIdList = self.get_holdingId(reponse.find("sru:records/sru:record/sru:recordData/marc:record",ns),libraryId)
-            return mmsId, holdingIdList
+    def ppn_to_holding_id(self, ppn, library_id):
+        """
+        For a given PPN & a given library's id return a list of alma holdings'id
+        
+        Arguments:
+            ppn {string} -- ppn de la notice. Préfixé par (PPN)
+            library_id {string} -- Alma library id
+        
+        Returns:
+            string -- status of reponse (Ok if one result, Ko if 0 or >1)
+            int -- number of result
+            string -- mms id of Alma record
+            list -- list of holding id
+        """
+        reponse = self.sru_request(query=ppn ,reponseFormat='marcxml', index='alma.other_system_number')
+        nb_result = self.get_nombre_resultats(reponse)
+        if  nb_result == '1' :
+            mms_id = self.get_mmsId(reponse.find("sru:records/sru:record",ns))
+            holdingIdList = self.get_holdingId(reponse.find("sru:records/sru:record/sru:recordData/marc:record",ns),library_id)
+            return 'Ok', nb_result, mms_id, holdingIdList
         else :
-            return 'Ko'
+            return 'Ko', nb_result, 0, 0
 #Gestion des erreurs
 class HTTPError(Exception):
 
