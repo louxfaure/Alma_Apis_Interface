@@ -40,7 +40,7 @@ class AlmaSru(object):
 
     def sru_request(self, query ,reponseFormat='marcxml', index='alma.all_for_ui',noticesSuppr=False):
         url=self.fullurl(query,reponseFormat, index,noticesSuppr)
-        print(url)
+        self.logger.debug("{} :: alma_sru :: {}".format(query,url))
         r = requests.get(url)
         try:
             r.raise_for_status()  
@@ -53,7 +53,6 @@ class AlmaSru(object):
     def get_nombre_resultats(self,reponsexml):
         # ET.dump(reponsexml)
         nb = reponsexml.find("sru:numberOfRecords",ns).text
-        print(nb)
         return nb
     
     def get_mmsId(self,record):
@@ -62,7 +61,6 @@ class AlmaSru(object):
     def get_holdingId(self,record,libraryId):
         holdingList = []
         for holding in record.findall(".//marc:datafield[@tag='AVA']",ns):
-            print("test")
             if holding.find("marc:subfield[@code='b']",ns).text == libraryId :
                 holdingList.append(holding.find("marc:subfield[@code='8']",ns).text)
         return holdingList
@@ -83,19 +81,28 @@ class AlmaSru(object):
             library_id {string} -- Alma library id
         
         Returns:
-            string -- status of reponse (Ok if one result, Ko if 0 or >1)
-            int -- number of result
+            string -- status of reponse (Ok if one result, Ko if 0 or >1 record or if no holding)
+            string -- error_msg or number of result
             string -- mms id of Alma record
             list -- list of holding id
         """
         reponse = self.sru_request(query=ppn ,reponseFormat='marcxml', index='alma.other_system_number')
         nb_result = self.get_nombre_resultats(reponse)
-        if  nb_result == '1' :
+        if  nb_result != '1' :
+            self.logger.error("{} :: AlmaSru.ppn_to_holding_id :: {} notices dans Alma".format(ppn, nb_result))
+            error_msg = "{} notices dans Alma pour le ppn {}".format(nb_result, ppn)
+            return 'Ko', error_msg, 0, 0
+        else :
             mms_id = self.get_mmsId(reponse.find("sru:records/sru:record",ns))
             holdingIdList = self.get_holdingId(reponse.find("sru:records/sru:record/sru:recordData/marc:record",ns),library_id)
-            return 'Ok', nb_result, mms_id, holdingIdList
-        else :
-            return 'Ko', nb_result, 0, 0
+            self.logger.debug("{} :: AlmaSru.ppn_to_holding_id :: {} holdings dans Alma pour le mms id {}".format(ppn, len(holdingIdList), mms_id))
+            if len(holdingIdList) == 0:
+                self.logger.error("{} :: AlmaSru.ppn_to_holding_id :: Aucune holding dans Alma pour le mms id {}".format(ppn, mms_id))
+                error_msg = "Aucune holding dans Alma"
+                return 'Ko', error_msg, 0, 0
+            else:
+                return 'Ok', nb_result, mms_id, holdingIdList
+            
 #Gestion des erreurs
 class HTTPError(Exception):
 
