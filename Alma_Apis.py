@@ -29,6 +29,7 @@ RESOURCES = {
     'job_instance' : 'conf/jobs/{job_id}/instances/{instance_id}',
     'search_set_id' : 'conf/sets?q=name~{set_name}',
     'get_set' : 'conf/sets/{set_id}',
+    'get_locations' : 'conf/libraries/{library_id}/locations'
 }
 
 
@@ -123,6 +124,31 @@ class Alma(object):
         except KeyError:
             raise HTTPError(response,self.service)
         return members_num
+
+    def get_locations(self, library_id, accept='json'):
+        """List all the libary's location in a dictionnary. Name and External name are used as dic key.
+        
+        Arguments:
+            library_id {str} -- Alma library id {[type]}
+        
+        Keyword Arguments:
+            accept {str} -- (default: {'json'})
+        
+        Raises:
+            HTTPError: [description]
+        
+        Returns:
+            [type] -- [description]
+        """
+        response = self.request('GET', 'get_locations',
+                                {'library_id': library_id},
+                                accept=accept)
+        content = self.extract_content(response)
+        dict_locations = {}
+        for location in content['location']:
+            dict_locations[location['name']] = location['code']
+            dict_locations[location['external_name']] = location['code']
+        return dict_locations
 
 #Gestion des erreurs
 class HTTPError(Exception):

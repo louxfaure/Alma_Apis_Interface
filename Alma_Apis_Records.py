@@ -26,11 +26,12 @@ FORMATS = {
 
 RESOURCES = {
     'get_holding' : 'bibs/{bib_id}/holdings/{holding_id}'
+    'get_item_with_barcode' : 'items?item_barcode={barcode}'
 }
 
 
 class AlmaRecords(object):
-    """A set of function for interact with Alma Apis in aréa "Records & Inventory"
+    """A set of function for interact with Alma Apis in area "Records & Inventory"
     """
 
     def __init__(self, apikey=__apikey__, region=__region__,service='AlmaPy'):
@@ -50,7 +51,7 @@ class AlmaRecords(object):
         """Construct base Url for Alma Api
         
         Returns:
-            strng -- Alma Base URL
+            string -- Alma Base URL
         """
         return '{}/almaws/{}/'.format(self.endpoint, __api_version__)
 
@@ -110,4 +111,7 @@ class AlmaRecords(object):
             return status, response
         else:
             return status, self.extract_content(response)
+            
+    def get_item_with_barcode(self,barcode, accept='xml')
+    
 
