@@ -3,6 +3,7 @@ import os
 import requests
 import json
 import logging
+import xml.etree.ElementTree as ET
 # internal import
 from mail import mail
 from logs import logs
@@ -25,10 +26,15 @@ FORMATS = {
 }
 
 RESOURCES = {
-    'get_holding' : 'bibs/{bib_id}/holdings/{holding_id}'
-    'get_item_with_barcode' : 'items?item_barcode={barcode}'
+    'get_holding' : 'bibs/{bib_id}/holdings/{holding_id}',
+    'get_item_with_barcode' : 'items?item_barcode={barcode}',
+    'get_item' : 'bibs/{bib_id}/holdings/{holding_id}/items/{item_id}',
 }
 
+NS = {'sru': 'http://www.loc.gov/zing/srw/',
+        'marc': 'http://www.loc.gov/MARC21/slim',
+        'xmlb' : 'http://com/exlibris/urm/general/xmlbeans'
+         }
 
 class AlmaRecords(object):
     """A set of function for interact with Alma Apis in area "Records & Inventory"
@@ -67,7 +73,7 @@ class AlmaRecords(object):
         if content_type is not None:
             headers['Content-Type'] = FORMATS[content_type]
         return headers
-
+    
     def request(self, httpmethod, resource, ids, params={}, data=None,
                 accept='json', content_type=None):
         response = requests.request(
@@ -80,9 +86,15 @@ class AlmaRecords(object):
             response.raise_for_status()  
         except requests.exceptions.HTTPError:
             status = 'Error'
+            root = ET.fromstring(response.text)
+            error_message = root.find(".//xmlb:errorMessage",NS).text
+            error_code = root.find(".//xmlb:errorCode",NS).text
             self.logger.error("Alma_Apis :: HTTP Status: {} || Method: {} || URL: {} || Response: {}".format(response.status_code,response.request.method, response.url, response.text))
             error_msg = "PPN inconnu ou service indisponible"
-            return status, response.text
+            if error_message:
+                return status, "{} -- {}".format(error_code, error_message)
+            else:
+                response.text
         return "Success", response
 
     def extract_content(self, response):
@@ -91,6 +103,7 @@ class AlmaRecords(object):
             return response.json()
         else:
             return response.content.decode('utf-8')
+
 
     #Retourne une holding à partir de son identifiant et de l'identifiant de la notice bib
     def get_holding(self, bib_id, holding_id, accept='xml'):
@@ -111,7 +124,26 @@ class AlmaRecords(object):
             return status, response
         else:
             return status, self.extract_content(response)
-            
-    def get_item_with_barcode(self,barcode, accept='xml')
+
+    def get_item_with_barcode(self,barcode, accept='xml'):
+        status,response = self.request('GET', 'get_item_with_barcode',
+                                {'barcode' : barcode},
+                                accept=accept)
+        if status == 'Error':
+            return status, response
+        else:
+            return status, self.extract_content(response)
+
+    def set_item(self, bib_id, holding_id, item_id, data):
+
+        status, response = self.request('PUT', 'get_item', 
+                                {'bib_id': bib_id,
+                                'holding_id': holding_id,
+                                'item_id': item_id},
+                                data=data, content_type='xml', accept='xml')
+        if status == 'Error':
+            return status, response
+        else:
+            return status, self.extract_content(response)
     
 

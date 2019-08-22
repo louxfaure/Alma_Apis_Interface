@@ -147,7 +147,6 @@ class Alma(object):
         dict_locations = {}
         for location in content['location']:
             dict_locations[location['name']] = location['code']
-            dict_locations[location['external_name']] = location['code']
         return dict_locations
 
 #Gestion des erreurs
