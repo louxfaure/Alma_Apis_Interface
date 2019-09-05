@@ -1,9 +1,12 @@
 import os
 # external imports
 import requests
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 import json
 import logging
 import xml.etree.ElementTree as ET
+import time
 # internal import
 from mail import mail
 from logs import logs
@@ -73,10 +76,36 @@ class AlmaRecords(object):
         if content_type is not None:
             headers['Content-Type'] = FORMATS[content_type]
         return headers
+    def get_error_message(self, response, accept):
+        """Extract error code & error message of an API response
+        
+        Arguments:
+            response {object} -- API REsponse
+        
+        Returns:
+            int -- error code
+            str -- error message
+        """
+        error_code, error_message = '',''
+        if accept == 'xml':
+            root = ET.fromstring(response.text)
+            error_message = root.find(".//xmlb:errorMessage",NS).text if root.find(".//xmlb:errorMessage",NS).text else response.text 
+            error_code = root.find(".//xmlb:errorCode",NS).text if root.find(".//xmlb:errorCode",NS).text else '???'
+        else :
+            content = response.json()
+            error_message = content['errorList'][0]['errorMessage']
+            errorCode = content['errorList'][0]['errorCode']
+        return error_code, error_message
     
     def request(self, httpmethod, resource, ids, params={}, data=None,
-                accept='json', content_type=None):
-        response = requests.request(
+                accept='json', content_type=None, nb_tries=0):
+        #20190905 retry request 3 time s in case of requests.exceptions.ConnectionError
+        session = requests.Session()
+        retry = Retry(connect=3, backoff_factor=0.5)
+        adapter = HTTPAdapter(max_retries=retry)
+        session.mount('http://', adapter)
+        session.mount('https://', adapter)
+        response = session.request(
             method=httpmethod,
             headers=self.headers(accept=accept, content_type=content_type),
             url=self.fullurl(resource, ids),
@@ -85,18 +114,22 @@ class AlmaRecords(object):
         try:
             response.raise_for_status()  
         except requests.exceptions.HTTPError:
-            status = 'Error'
-            root = ET.fromstring(response.text)
-            error_message = root.find(".//xmlb:errorMessage",NS).text
-            error_code = root.find(".//xmlb:errorCode",NS).text
+            error_code, error_message= self.get_error_message(response,accept)
             self.logger.error("Alma_Apis :: HTTP Status: {} || Method: {} || URL: {} || Response: {}".format(response.status_code,response.request.method, response.url, response.text))
-            error_msg = "PPN inconnu ou service indisponible"
-            if error_message:
-                return status, "{} -- {}".format(error_code, error_message)
-            else:
-                response.text
+            return 'Error', "{} -- {}".format(error_code, error_message)
+        except requests.exceptions.ConnectionError:
+            error_code, error_message= self.get_error_message(response,accept)
+            self.logger.error("Alma_Apis :: Connection Error: {} || Method: {} || URL: {} || Response: {}".format(response.status_code,response.request.method, response.url, response.text))
+            return 'Error', "{} -- {}".format(error_code, error_message)
+        except requests.exceptions.RequestException:
+            error_code, error_message= self.get_error_message(response,accept)
+            self.logger.error("Alma_Apis :: Connection Error: {} || Method: {} || URL: {} || Response: {}".format(response.status_code,response.request.method, response.url, response.text))
+            return 'Error', "{} -- {}".format(error_code, error_message)
         return "Success", response
 
+            
+
+    
     def extract_content(self, response):
         ctype = response.headers['Content-Type']
         if 'json' in ctype:
