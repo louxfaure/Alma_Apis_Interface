@@ -34,9 +34,16 @@ def get_user_institution(user_id):
 
         
 
-user_id = 'mbenoit008@u-bordeaux-montaigne.fr'
+user_id = 'yaaddi@u-bordeaux.fr'
 api_key = os.getenv("TEST_UB_API")
 api = Alma_Apis_Users.AlmaUsers(apikey=api_key, region='EU', service='test')
 
-status,response = api.delete_user(user_id)
-print(response)
+status,response = api.get_user(user_id,user_view='brief',accept='json')
+
+response['primary_id'] = 'testyaaddi@u-bordeaux.fr'
+a,b = api.update_user(user_id,
+                    "user_group,job_category,pin_number,preferred_language,campus_code,rs_libraries,user_title,library_notices",
+                    json.dumps(response, indent=4, sort_keys=True),
+                    accept='json',
+                    content_type='json')
+print(b)          

@@ -1,4 +1,5 @@
 import os
+import re
 # external imports
 import requests
 from requests.adapters import HTTPAdapter
@@ -32,7 +33,7 @@ RESOURCES = {
     'get_user' : 'users/{user_id}?user_id_type=all_unique&view={user_view}&expand={user_expand}',
     'retrieve_user_by_id' : 'users?limit=10&offset=0&q=primary_id~{user_id}',
     'delete_user' : 'users/{user_id}',
-    'update_user' : 'users/{user_id}?override={param_override}',
+    'update_user' : 'users/{user_id}?user_id_type=all_unique&override={param_override}',
 }
 
 NS = {'sru': 'http://www.loc.gov/zing/srw/',
@@ -69,6 +70,7 @@ class AlmaUsers(object):
         return self.baseurl + RESOURCES[resource].format(**ids)
 
     def headers(self, accept='json', content_type=None):
+        print(content_type)
         headers = {
             "User-Agent": "pyalma/{}".format(__version__),
             "Authorization": "apikey {}".format(self.apikey),
@@ -76,6 +78,7 @@ class AlmaUsers(object):
         }
         if content_type is not None:
             headers['Content-Type'] = FORMATS[content_type]
+        print(headers)
         return headers
     def get_error_message(self, response, accept):
         """Extract error code & error message of an API response
@@ -87,14 +90,28 @@ class AlmaUsers(object):
             int -- error code
             str -- error message
         """
-        error_code, error_message = '',''
-        root = ET.fromstring(response.text)
-        error_message = root.find(".//xmlb:errorMessage",NS).text if root.find(".//xmlb:errorMessage",NS).text else response.text 
-        error_code = root.find(".//xmlb:errorCode",NS).text if root.find(".//xmlb:errorCode",NS).text else '???'
-        return error_code, error_message
+        data = re.sub(r'\s+', '', response.text)
+        if (re.match(r'^<.+>$', data)):
+            root = ET.fromstring(response.text)
+            error_message = root.find(".//xmlb:errorMessage",NS).text if root.find(".//xmlb:errorMessage",NS).text else response.text 
+            error_code = root.find(".//xmlb:errorCode",NS).text if root.find(".//xmlb:errorCode",NS).text else '???'
+            return error_code, error_message
+        elif (re.match(r'^{|[).+(}|]$', data)):
+            content = response.json()
+            if ('web_service_result' in content):
+                error_message = content['web_service_result']['errorList']['error']['errorMessage']
+                error_code = content['web_service_result']['errorList']['error']['errorCode']
+                return error_code, error_message
+            else :
+                error_message = content['errorList']['error'][0]['errorMessage']
+                error_code = content['errorList']['error'][0]['errorCode']
+                return error_code, error_message
+        else:
+            return 666, 'Format de réponse invalide'
     
     def request(self, httpmethod, resource, ids, params={}, data=None,
                 accept='json', content_type=None, nb_tries=0):
+        print(content_type)
         #20190905 retry request 3 time s in case of requests.exceptions.ConnectionError
         session = requests.Session()
         retry = Retry(connect=3, backoff_factor=0.5)
@@ -107,9 +124,11 @@ class AlmaUsers(object):
             url=self.fullurl(resource, ids),
             params=params,
             data=data)
+        print(response.url)
         try:
             response.raise_for_status()  
         except requests.exceptions.HTTPError:
+            print (response.text)
             error_code, error_message= self.get_error_message(response,accept)
             self.logger.error("Alma_Apis :: HTTP Status: {} || Method: {} || URL: {} || Response: {}".format(response.status_code,response.request.method, response.url, response.text))
             return 'Error', "{} -- {}".format(error_code, error_message)
@@ -196,7 +215,7 @@ class AlmaUsers(object):
         else:
             return status, response.status_code
 
-    def update_user(self, user_id, override, data ,accept='xml'):
+    def update_user(self, user_id, override, data ,accept='xml',content_type='xml'):
         """Mets à jour lesinformations utilistaeurs
         
         Arguments:
@@ -217,8 +236,10 @@ class AlmaUsers(object):
                                 {'user_id' : user_id,
                                 'param_override' : override },
                                 data=data,
-                                accept=accept)
+                                accept=accept,
+                                content_type=content_type)
         if status == 'Error':
             return status, response
         else:
-            return status, response
+            return status,  self.extract_content(response)
+        
