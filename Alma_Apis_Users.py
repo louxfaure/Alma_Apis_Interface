@@ -30,7 +30,8 @@ FORMATS = {
 }
 
 RESOURCES = {
-    'get_user' : 'users/{user_id}?user_id_type={user_id_type}&view={user_view}&expand={user_expand}',
+    'get_user' : 'users/{user_id}?view={user_view}&expand={user_expand}',
+    'get_user_with_id_type' : 'users/{user_id}?user_id_type={user_id_type}&view={user_view}&expand={user_expand}',
     'retrieve_user_by_id' : 'users?limit=10&offset=0&q=primary_id~{user_id}',
     'delete_user' : 'users/{user_id}',
     'update_user' : 'users/{user_id}?user_id_type=all_unique&override={param_override}',
@@ -191,7 +192,10 @@ class AlmaUsers(object):
             status {str} -- Success or Error
             response {str} -- Message d'erreurs ou Lecteur 
         """
-        status,response = self.request('GET', 'get_user',
+        url = 'get_user'
+        if  user_id_type != 'PRIMARYIDENTIFIER' :
+            url = 'get_user_with_id_type'
+        status,response = self.request('GET', url,
                                 {'user_id' : user_id,
                                 'user_id_type' : user_id_type,
                                 'user_view' : user_view,
