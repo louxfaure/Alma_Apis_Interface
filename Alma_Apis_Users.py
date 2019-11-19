@@ -30,7 +30,7 @@ FORMATS = {
 }
 
 RESOURCES = {
-    'get_user' : 'users/{user_id}?user_id_type=all_unique&view={user_view}&expand={user_expand}',
+    'get_user' : 'users/{user_id}?user_id_type={user_id_type}&view={user_view}&expand={user_expand}',
     'retrieve_user_by_id' : 'users?limit=10&offset=0&q=primary_id~{user_id}',
     'delete_user' : 'users/{user_id}',
     'update_user' : 'users/{user_id}?user_id_type=all_unique&override={param_override}',
@@ -131,7 +131,10 @@ class AlmaUsers(object):
             print (response.text)
             error_code, error_message= self.get_error_message(response,accept)
             self.logger.error("Alma_Apis :: HTTP Status: {} || Method: {} || URL: {} || Response: {}".format(response.status_code,response.request.method, response.url, response.text))
-            return 'Error', "{} -- {}".format(error_code, error_message)
+            if error_code in ['401890','401861'] :
+                return 'No record found', "{} -- {}".format(error_code, error_message)
+            else : 
+                return 'Error', "{} -- {}".format(error_code, error_message)
         except requests.exceptions.ConnectionError:
             error_code, error_message= self.get_error_message(response,accept)
             self.logger.error("Alma_Apis :: Connection Error: {} || Method: {} || URL: {} || Response: {}".format(response.status_code,response.request.method, response.url, response.text))
@@ -172,13 +175,14 @@ class AlmaUsers(object):
 
 
 
-    def get_user(self, user_id, user_expand='loans,requests', user_view='brief',accept='xml'):
+    def get_user(self, user_id, user_id_type='PRIMARYIDENTIFIER' , user_expand='loans,requests', user_view='brief',accept='xml'):
         """Retourne un usager à partir d'un identifiant
         
         Arguments:
             user_id {str} -- identifiant du lecteur
         
         Keyword Arguments:
+            user_id_type {str} -- type d'identifiant sure lequel effectué la recherche BARCODE ou PRIMARYIDENTIFIER (default: {'PRIMARYIDENTIFIER'})
             user_expand {str} -- informations supllémentaires: (default: {'loans'})
             user_view {str} -- affichage complet full ou brief  (default: {'brief'})
             accept {str} -- format de sortie xml ou json (default: {'xml'})
@@ -189,13 +193,14 @@ class AlmaUsers(object):
         """
         status,response = self.request('GET', 'get_user',
                                 {'user_id' : user_id,
+                                'user_id_type' : user_id_type,
                                 'user_view' : user_view,
                                 'user_expand' : user_expand},
                                 accept=accept)
-        if status == 'Error':
-            return status, response
-        else:
+        if status == 'Success':
             return status, self.extract_content(response)
+        else:
+            return status, response
 
     def delete_user(self, user_id, accept='xml'):
         """Supprime un usager à partir de son identifiant
