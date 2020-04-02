@@ -7,6 +7,9 @@ import json
 import logging
 import xml.etree.ElementTree as ET
 import time
+import sys
+from math import *
+
 # internal import
 from mail import mail
 from logs import logs
@@ -32,6 +35,8 @@ RESOURCES = {
     'get_holding' : 'bibs/{bib_id}/holdings/{holding_id}',
     'get_item_with_barcode' : 'items?item_barcode={barcode}',
     'get_item' : 'bibs/{bib_id}/holdings/{holding_id}/items/{item_id}',
+    'get_set' : 'conf/sets/{set_id}',
+    'get_set_members' : 'conf/sets/{set_id}/members?limit={limit}&offset={offset}'
 }
 
 NS = {'sru': 'http://www.loc.gov/zing/srw/',
@@ -98,7 +103,7 @@ class AlmaRecords(object):
         return error_code, error_message
     
     def request(self, httpmethod, resource, ids, params={}, data=None,
-                accept='json', content_type=None, nb_tries=0):
+                accept='json', content_type=None, nb_tries=0, in_url=None):
         #20190905 retry request 3 time s in case of requests.exceptions.ConnectionError
         session = requests.Session()
         retry = Retry(connect=3, backoff_factor=0.5)
@@ -108,7 +113,7 @@ class AlmaRecords(object):
         response = session.request(
             method=httpmethod,
             headers=self.headers(accept=accept, content_type=content_type),
-            url=self.fullurl(resource, ids),
+            url= self.fullurl(resource, ids) if in_url is None else in_url,
             params=params,
             data=data)
         try:
@@ -167,6 +172,17 @@ class AlmaRecords(object):
         else:
             return status, self.extract_content(response)
 
+    def get_item_with_url(self,in_url, accept='xml'):
+        status,response = self.request('GET', None,
+                                None,
+                                in_url=in_url,
+                                accept=accept)
+        if status == 'Error':
+            return status, response
+        else:
+            return status, self.extract_content(response)
+
+
     def set_item(self, bib_id, holding_id, item_id, data):
 
         status, response = self.request('PUT', 'get_item', 
@@ -178,5 +194,47 @@ class AlmaRecords(object):
             return status, response
         else:
             return status, self.extract_content(response)
+    
+    def get_set_members_list(self,set_id):
+        members_list = []
+        status, members_number = self.get_set_member_number(set_id)
+        self.logger.debug(members_number)
+        request_number = ceil(members_number/100)
+        offset = 0
+        for x in range(request_number):
+            data = self.get_set_members(set_id, offset=offset)
+            for member in data['member']:
+                members_list.append(member['link'])
+            offset = offset + 100
+
+        return members_list
+
+        #Retourne le nombre de membres d'un jeu de résultat
+    def get_set_member_number(self, set_id, accept='json'):
+        status, response = self.request('GET', 'get_set',
+                                {'set_id': set_id},
+                                accept=accept)
+        if status == 'Error':
+            self.logger.error(response)
+            sys.exit()
+        else:
+            content = self.extract_content(response)
+            members_num = content['number_of_members']['value']
+            return status, members_num
+
+
+    def get_set_members(self,set_id,limit=100,offset=0,accept='json'):
+        status,response = self.request('GET', 'get_set_members',
+                                {   'set_id' : set_id,
+                                    'limit'  : limit,
+                                    'offset' : offset,
+                                },
+                                accept=accept)
+        if status == 'Error':
+            self.logger.error(response)
+            sys.exit()
+        else:
+            content = self.extract_content(response)
+            return content
     
 
