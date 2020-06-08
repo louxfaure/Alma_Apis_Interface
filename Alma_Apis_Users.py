@@ -35,6 +35,10 @@ RESOURCES = {
     'retrieve_user_by_id' : 'users?limit=10&offset=0&q=primary_id~{user_id}',
     'delete_user' : 'users/{user_id}',
     'update_user' : 'users/{user_id}?user_id_type=all_unique&override={param_override}',
+    'get_user_requests' : 'users/{user_id}/requests?request_type={request_type}&user_id_type={user_id_type}&limit={limit}&offset={offset}&status={status}',
+    'delete_user_requests' : 'users/{user_id}/requests/{request_id}?reason{reason}&notify_user={notify_user}',
+    'update_user_request' : 'users/{user_id}/requests/{request_id}',
+
 }
 
 NS = {'sru': 'http://www.loc.gov/zing/srw/',
@@ -251,4 +255,80 @@ class AlmaUsers(object):
             return status, response
         else:
             return status,  self.extract_content(response)
+    
+    def get_user_requests(self,user_id,request_type, user_id_type = 'all_unique',limit = 20, offset = 0, status = 'active', accept ='xml'):
+        """ Get user requests
+
+        Arguments:
+            user_id {str} -- A unique identifier for the user
+            request_type {str} -- Filter results by request type.Possible values: HOLD, DIGITIZATION, BOOKING.
+
+        Keyword Arguments:
+            user_id_type {str} -- The type of identifier that is being searched. Optional. If this is not provided, all unique identifier types are used. The values that can be used are any of the values in UserIdentifierTypes code table. (default: {'allunique'})
+            limit {int} -- mits the number of results. Optional. Valid values are 0-100. (default: {20})
+            offset {int} -- Offset of the results returned. (default: {0})
+            status {str} -- Active or History request status. Default is active. The 'history' option is only available if the 'should_anonymize_requests' customer parameter is set to 'false' at the time the request was completed. (default: {'active'})
+            accept {str} -- [description] (default: {'xml'})
+        """
+        status,response = self.request('GET', 'get_user_requests',
+                                {'user_id' : user_id,
+                                'request_type' : request_type,
+                                'user_id_type' : user_id_type,
+                                'limit' : limit,
+                                'offset' : offset,
+                                'status' : status},
+                                accept=accept)
+        if status == 'Success':
+            return status, self.extract_content(response)
+        else:
+            return status, response
+
+    def delete_user_request(self,user_id,request_id, reason = 'CancelledAtPatronRequest',notify_user = 'false', accept ='xml'):
+        """Delete a user request
+
+        Arguments:
+            user_id {[str]} -- A unique identifier for the user
+            request_id {str} -- A unique identifier of the request that should be canceled.
+
+        Keyword Arguments:
+            reason {str} -- Code of the cancel reason. Must be a value from the code table 'RequestCancellationReasons' (default: {'CancelledAtPatronRequest'})
+            notify_user {str} -- Boolean flag for notifying the requester of the cancellation (when relevant). (default: {'false'})
+            accept {str} -- [description] (default: {'xml'})
+        """
+        status,response = self.request('DELETE', 'delete_user_requests',
+                                {'user_id' : user_id,
+                                'request_id' : request_id,
+                                'reason' : reason,
+                                'notify_user' : notify_user},
+                                accept=accept)
+        if status == 'Success':
+            return status, response
+        else:
+            return status, response
+
+    def update_user_request(self, user_id, reques_id, data ,accept='xml',content_type='xml'):
+        """Mets à jour les informations pour une deamnde 
         
+        Arguments:
+            user_id {str} -- identifiant de l'utilisateur Primary Id ou Barcode
+            reques_id {str} -- identifiant de la deamnde
+            data {json ou xml} -- object lecteur en json ou xml selon le parmètre passer à accept
+        
+        Keyword Arguments:
+            accept {str} -- xml ou json (default: {'xml'})
+        
+        Returns:
+            status {str} -- Success or Error
+            response {str} -- Message d'erreurs ou requete MOdifié
+        """ 
+
+        status,response = self.request('PUT', 'update_user_request',
+                                {'user_id' : user_id,
+                                'request_id' : reques_id },
+                                data=data,
+                                accept=accept,
+                                content_type=content_type)
+        if status == 'Error':
+            return status, response
+        else:
+            return status,  self.extract_content(response)

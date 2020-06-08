@@ -33,6 +33,7 @@ FORMATS = {
 
 RESOURCES = {
     'get_holding' : 'bibs/{bib_id}/holdings/{holding_id}',
+    'get_holdings_list' : 'bibs/{bib_id}/holdings',
     'get_item_with_barcode' : 'items?item_barcode={barcode}',
     'get_item' : 'bibs/{bib_id}/holdings/{holding_id}/items/{item_id}',
     'get_set' : 'conf/sets/{set_id}',
@@ -148,6 +149,15 @@ class AlmaRecords(object):
         status,response = self.request('GET', 'get_holding',
                                 {'bib_id' : bib_id,
                                 'holding_id' : holding_id},
+                                accept=accept)
+        if status == 'Error':
+            return status, response
+        else:
+            return status, self.extract_content(response)
+    
+    def get_holdings_list(self, bib_id, accept='xml'):
+        status,response = self.request('GET', 'get_holdings_list',
+                                {'bib_id' : bib_id},
                                 accept=accept)
         if status == 'Error':
             return status, response
