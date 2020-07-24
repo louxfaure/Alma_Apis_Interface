@@ -85,11 +85,18 @@ class Alma(object):
         else:
             return response.content.decode('utf-8')
 
-    #Exécute un traitement
+    #Exécute un traitement avec des paramètres
     def post_job(self, job_id, data, content_type='json', accept='json'):
         response = self.request('POST', 'job', 
                                 {'job_id': job_id,'operation':'run'},
                                 data=data, content_type=content_type, accept=accept)
+        return self.extract_content(response)
+    
+    #Exécute un traitement sans paramètrees
+    def post_job_without_data(self, job_id, content_type='json', accept='json'):
+        response = self.request('POST', 'job', 
+                                {'job_id': job_id,'operation':'run'},
+                               content_type=content_type, accept=accept)
         return self.extract_content(response)
 
     #Appel un traitement à l'aide de l'identifiant et l'instance du traitement

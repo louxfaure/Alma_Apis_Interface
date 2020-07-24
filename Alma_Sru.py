@@ -27,19 +27,22 @@ class AlmaSru(object):
     def baseurl(self):
         return "https://pudb-{}.alma.exlibrisgroup.com/view/sru/{}?version=1.2&operation=searchRetrieve".format(self.institution.lower(),"33PUDB_"+self.institution.upper())
 
-    def fullurl(self, query, reponseFormat,index,noticesSuppr):
-        return self.baseurl + '&format=' + reponseFormat + '&query=' + self.searchQuery(query, index, noticesSuppr)
+    def fullurl(self, query, reponseFormat,index,noticesSuppr,complex_query):
+        return self.baseurl + '&format=' + reponseFormat + '&query=' + self.searchQuery(query, index, noticesSuppr, complex_query)
 
-    def searchQuery(self, query, index, noticesSuprr):
-        searchQuery = index
-        searchQuery += '='
-        searchQuery += query
+    def searchQuery(self, query, index, noticesSuprr, complex_query):
+        if complex_query :
+            searchQuery = query
+        else :
+            searchQuery = index
+            searchQuery += '='
+            searchQuery += query
         if not noticesSuprr:
             searchQuery += ' and alma.mms_tagSuppressed=false'
         return urllib.parse.quote(searchQuery)
 
-    def sru_request(self, query ,reponseFormat='marcxml', index='alma.all_for_ui',noticesSuppr=False):
-        url=self.fullurl(query,reponseFormat, index,noticesSuppr)
+    def sru_request(self, query ,reponseFormat='marcxml', index='alma.all_for_ui',noticesSuppr=False, complex_query=False):
+        url=self.fullurl(query,reponseFormat, index,noticesSuppr,complex_query)
         self.logger.debug("{} :: alma_sru :: {}".format(query,url))
         r = requests.get(url)
         try:
@@ -51,9 +54,11 @@ class AlmaSru(object):
         return reponsexml
 
     def get_nombre_resultats(self,reponsexml):
-        # ET.dump(reponsexml)
-        nb = reponsexml.find("sru:numberOfRecords",ns).text
-        return nb
+        
+        if reponsexml.find("sru:numberOfRecords",ns).text:
+            return reponsexml.find("sru:numberOfRecords",ns).text
+        else : 
+            return 0
     
     def get_mmsId(self,record):
         return record.find("sru:recordIdentifier",ns).text
@@ -67,6 +72,15 @@ class AlmaSru(object):
 
     def ppnToMmsid(self, query ):
         reponse = self.sru_request(query=query ,reponseFormat='marcxml', index='alma.other_system_number')
+        if  self.get_nombre_resultats(reponse) == '1' :
+            mmsId = self.get_mmsId(reponse.find("sru:records/sru:record",ns))
+            return mmsId
+        else :
+            return 'Ko'
+    
+    def originatingSystemIdToMmsid(self, origanitingSystemId ):
+        query = "alma.mms_originatingSystemId={0} or alma.other_system_number={0}".format(origanitingSystemId)
+        reponse = self.sru_request(query=query ,reponseFormat='marcxml', index='None', complex_query = True)
         if  self.get_nombre_resultats(reponse) == '1' :
             mmsId = self.get_mmsId(reponse.find("sru:records/sru:record",ns))
             return mmsId

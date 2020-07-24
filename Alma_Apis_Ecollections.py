@@ -32,13 +32,9 @@ FORMATS = {
 }
 
 RESOURCES = {
-    'get_holding' : 'bibs/{bib_id}/holdings/{holding_id}',
-    'get_holdings_list' : 'bibs/{bib_id}/holdings',
-    'get_item_with_barcode' : 'items?item_barcode={barcode}',
-    'get_item' : 'bibs/{bib_id}/holdings/{holding_id}/items/{item_id}',
-    'get_set' : 'conf/sets/{set_id}',
-    'get_set_members' : 'conf/sets/{set_id}/members?limit={limit}&offset={offset}',
-    'get_record' : 'bibs/{mms_id}?view={view}&expand={expand}'
+    'service' : 'electronic/e-collections/{ecollection_id}/e-services/{eservice_id}',
+    'portfolios_list' : 'electronic/e-collections/{ecollection_id}/e-services/{eservice_id}/portfolios?limit={limit}&offset={offset}',
+    'portfolio' : 'electronic/e-collections/{ecollection_id}/e-services/{eservice_id}/portfolios/{portfolio_id}'
 }
 
 NS = {'sru': 'http://www.loc.gov/zing/srw/',
@@ -46,8 +42,8 @@ NS = {'sru': 'http://www.loc.gov/zing/srw/',
         'xmlb' : 'http://com/exlibris/urm/general/xmlbeans'
          }
 
-class AlmaRecords(object):
-    """A set of function for interact with Alma Apis in area "Records & Inventory"
+class AlmaERecords(object):
+    """A set of function for interact with Alma Apis in area "Electronic"
     """
 
     def __init__(self, apikey=__apikey__, region=__region__,service='AlmaPy'):
@@ -146,129 +142,73 @@ class AlmaRecords(object):
 
 
     #Retourne une holding à partir de son identifiant et de l'identifiant de la notice bib
-    def get_holding(self, bib_id, holding_id, accept='xml'):
-        status,response = self.request('GET', 'get_holding',
-                                {'bib_id' : bib_id,
-                                'holding_id' : holding_id},
-                                accept=accept)
-        if status == 'Error':
-            return status, response
-        else:
-            return status, self.extract_content(response)
-    
-    def get_holdings_list(self, bib_id, accept='xml'):
-        status,response = self.request('GET', 'get_holdings_list',
-                                {'bib_id' : bib_id},
-                                accept=accept)
-        if status == 'Error':
-            return status, response
-        else:
-            return status, self.extract_content(response)
-    
-    def set_holding(self, bib_id, holding_id, data):
-        status, response = self.request('PUT', 'get_holding', 
-                                {'bib_id': bib_id,'holding_id': holding_id},
-                                data=data, content_type='xml', accept='xml')
-        if status == 'Error':
-            return status, response
-        else:
-            return status, self.extract_content(response)
-
-    def get_item_with_barcode(self,barcode, accept='xml'):
-        status,response = self.request('GET', 'get_item_with_barcode',
-                                {'barcode' : barcode},
-                                accept=accept)
-        if status == 'Error':
-            return status, response
-        else:
-            return status, self.extract_content(response)
-
-    def get_item_with_url(self,in_url, accept='xml'):
-        status,response = self.request('GET', None,
-                                None,
-                                in_url=in_url,
-                                accept=accept)
-        if status == 'Error':
-            return status, response
-        else:
-            return status, self.extract_content(response)
-
-
-    def set_item(self, bib_id, holding_id, item_id, data):
-
-        status, response = self.request('PUT', 'get_item', 
-                                {'bib_id': bib_id,
-                                'holding_id': holding_id,
-                                'item_id': item_id},
-                                data=data, content_type='xml', accept='xml')
-        if status == 'Error':
-            return status, response
-        else:
-            return status, self.extract_content(response)
-    
-    def get_set_members_list(self,set_id):
-        members_list = []
-        status, members_number = self.get_set_member_number(set_id)
-        self.logger.debug(members_number)
-        request_number = ceil(members_number/100)
-        offset = 0
-        for x in range(request_number):
-            data = self.get_set_members(set_id, offset=offset)
-            for member in data['member']:
-                members_list.append(member['link'])
-            offset = offset + 100
-
-        return members_list
-
-        #Retourne le nombre de membres d'un jeu de résultat
-    def get_set_member_number(self, set_id, accept='json'):
-        status, response = self.request('GET', 'get_set',
-                                {'set_id': set_id},
-                                accept=accept)
-        if status == 'Error':
-            self.logger.error(response)
-            sys.exit()
-        else:
-            content = self.extract_content(response)
-            members_num = content['number_of_members']['value']
-            return status, members_num
-
-
-    def get_set_members(self,set_id,limit=100,offset=0,accept='json'):
-        status,response = self.request('GET', 'get_set_members',
-                                {   'set_id' : set_id,
-                                    'limit'  : limit,
-                                    'offset' : offset,
-                                },
-                                accept=accept)
-        if status == 'Error':
-            self.logger.error(response)
-            sys.exit()
-        else:
-            content = self.extract_content(response)
-            return content
-
-    def get_record(self,mms_id,view='full',expand='None',accept='xml'):
-        """Return a bibliographic record with a mms_id
+    def get_eservice(self, ecollection_id, eservice_id, accept='json'):
+        """ Appelle un service 
 
         Args:
-            mms_id ([type]): [description]
-            view (str, optional): Use view=brief to retrieve without the full record. Use view=local_fields to retrieve only local fields for an IZ record linked to an NZ record.. Defaults to 'full'.
-            expand (str, optional): This parameter allows for expanding the bibliographic record with additional information. To use more than one, use a comma separator.. Defaults to 'None'.
-            accept (str, optional): [description]. Defaults to 'xml'.
+            ecollection_id (int): Collection id 
+            eservice_id (int): Service ID
+            accept (str, optional): data format . xml or json. Defaults to 'json'.
 
         Returns:
-            [type]: [description]
+            status : Success or Error
+            response :xml string or json object. If status is Errorr return Error msg.
         """
-        status,response = self.request('GET', 'get_record',
-                                {   'mms_id' : mms_id,
-                                    'view'  : view,
-                                    'expand' : expand,
-                                },
+        status,response = self.request('GET', 'service',
+                                {'ecollection_id' : ecollection_id,
+                                'eservice_id' : eservice_id},
                                 accept=accept)
         if status == 'Error':
             return status, response
         else:
             return status, self.extract_content(response)
+
+    def get_number_of_portfolios_for_eservice(self, ecollection_id, eservice_id, accept='json'):
+        """ Appelle un service et returne le nombre de portfolio lié
+
+        Args:
+            ecollection_id (int): Collection id 
+            eservice_id (int): Service ID
+            accept (str, optional): data format . xml or json. Defaults to 'json'.
+
+        Returns:
+            status : Success or Error
+            response :Nb des portfolios. If status is Errorr return Error msg.
+        """
+        status,response = self.get_eservice(ecollection_id, eservice_id, accept='json')
+        if status == 'Error':
+            return status, response
+        else:
+            return status, response['portfolios']['value']
+
+    def get_portfolios_list(self, ecollection_id, eservice_id, limit=100, offset=0, accept='json'):
+        """ Appelle un service et retourne le nombre de portfolio lié
+        Args:
+            ecollection_id (int): Collection id 
+            eservice_id (int): Service ID
+            limit (int) : Limits the number of results. Optional. Valid values are 0-100. Default value: 10.
+            offset(int) : Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned.
+            accept (str, optional): data format . xml or json. Defaults to 'json'.
+
+        Returns:
+            status : Success or Error
+            response : .If status is Errorr return Error msg.
+        """
+        status,response = self.request('GET', 'portfolios_list',
+                                {'ecollection_id' : ecollection_id,
+                                'eservice_id' : eservice_id,
+                                'offset' : offset,
+                                'limit' : limit},
+                                accept=accept)
+        if status == 'Error':
+            return status, response
+        else:
+            return status, self.extract_content(response)
+
+    
+
+        
+        
+        
     
 
