@@ -1,8 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-import Alma_Sru
-import Alma_Apis_Users
+from Alma_Apis_Interface import Alma_Apis, Alma_Sru
 import xml.etree.ElementTree as ET
 
 import os

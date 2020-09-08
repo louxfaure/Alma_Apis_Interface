@@ -17,15 +17,19 @@ ns = {'sru': 'http://www.loc.gov/zing/srw/',
 
 class AlmaSru(object):
 
-    def __init__(self, institution ='network',service='AlmaSru'):
+    def __init__(self, institution ='network',service='AlmaSru',instance='Prod'):
         self.logger = logging.getLogger(service)
         self.institution = institution
         self.service = service
+        self.instance = instance
 
     @property
 
     def baseurl(self):
-        return "https://pudb-{}.alma.exlibrisgroup.com/view/sru/{}?version=1.2&operation=searchRetrieve".format(self.institution.lower(),"33PUDB_"+self.institution.upper())
+        if self.instance == 'Test' :
+            return "https://pudb-{}-psb.alma.exlibrisgroup.com/view/sru/{}?version=1.2&operation=searchRetrieve".format(self.institution.lower(),"33PUDB_"+self.institution.upper())
+        else :
+            return "https://pudb-{}.alma.exlibrisgroup.com/view/sru/{}?version=1.2&operation=searchRetrieve".format(self.institution.lower(),"33PUDB_"+self.institution.upper())
 
     def fullurl(self, query, reponseFormat,index,noticesSuppr,complex_query):
         return self.baseurl + '&format=' + reponseFormat + '&query=' + self.searchQuery(query, index, noticesSuppr, complex_query)
